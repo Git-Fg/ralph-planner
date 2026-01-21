@@ -1,0 +1,52 @@
+{
+  "description": "Ralph Planner Orchestrator with auto-compact handling and minimal stop hook.",
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDEPLUGINROOT}/hooks/precompact-hook.sh",
+            "trigger": "auto",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDEPLUGINROOT}/hooks/sessionstart-hook.sh",
+            "source": "compact",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDEPLUGINROOT}/hooks/posttooluse-hook.sh",
+            "matcher": "WriteEdit",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDEPLUGINROOT}/hooks/stop-hook.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

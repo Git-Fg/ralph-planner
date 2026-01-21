@@ -1,0 +1,20 @@
+{
+  "name": "ralph-planner",
+  "version": "2.0.0",
+  "description": "Ralph Planner - Unified planning and execution with continuous workflow. Create planning artifacts (BRIEF/ROADMAP/PLAN) and execute them in one seamless loop with real-time goals.xml updates.",
+  "license": "MIT",
+  "keywords": ["planning", "execution", "workflow", "automation", "productivity", "ralph-wiggum"],
+  "author": {
+    "name": "Felix"
+  },
+  "homepage": "https://github.com/felix/ralph-planner",
+  "repository": "https://github.com/felix/ralph-planner",
+  "commands": [
+    "./commands/ralph-planner-start.md",
+    "./commands/ralph-planner-stop.md"
+  ],
+  "skills": [
+    "ralph-planner"
+  ],
+  "hooks": "./hooks/hooks.json"
+}

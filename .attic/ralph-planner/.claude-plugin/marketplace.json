@@ -1,0 +1,28 @@
+{
+  "name": "ralph-planner",
+  "owner": {
+    "name": "Felix",
+    "email": "felix@example.com"
+  },
+  "metadata": {
+    "description": "Unified planning and execution plugin with continuous workflow",
+    "version": "2.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ralph-planner",
+      "source": "./",
+      "description": "Ralph Planner - Unified planning and execution with continuous workflow. Create planning artifacts (BRIEF/ROADMAP/PLAN) and execute them in one seamless loop with real-time goals.xml updates.",
+      "version": "2.0.0",
+      "author": {
+        "name": "Felix"
+      },
+      "keywords": ["planning", "execution", "workflow", "automation", "productivity"],
+      "category": "productivity",
+      "tags": ["planning", "automation", "workflow"],
+      "homepage": "https://github.com/felix/ralph-planner",
+      "repository": "https://github.com/felix/ralph-planner",
+      "license": "MIT"
+    }
+  ]
+}

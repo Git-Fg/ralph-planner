@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<goals project="Ralph Planner Website" version="1">
+  <goal id="G1" status="todo">
+    <title>Create project BRIEF and ROADMAP</title>
+    <description>Define the project vision, success criteria, and break down into phases.</description>
+    <acceptance>
+      <item>.planning/BRIEF.md exists with project vision and success criteria</item>
+      <item>.planning/ROADMAP.md exists with 3-6 phases</item>
+      <item>Phase directories created under .planning/phases/</item>
+    </acceptance>
+    <verify>
+      <cmd>test -f .planning/BRIEF.md</cmd>
+      <cmd>test -f .planning/ROADMAP.md</cmd>
+      <cmd>test -d .planning/phases</cmd>
+    </verify>
+    <notes></notes>
+  </goal>
+
+  <goal id="G2" status="todo">
+    <title>Implement project setup phase</title>
+    <description>Create the first executable plan for project setup with all necessary tasks.</description>
+    <acceptance>
+      <item>Phase 01 directory exists under .planning/phases</item>
+      <item>01-01-PLAN.md exists with concrete tasks</item>
+      <item>Tasks include explicit actions and verification</item>
+    </acceptance>
+    <verify>
+      <cmd>ls .planning/phases/01-*/01-01-PLAN.md 2>/dev/null</cmd>
+      <cmd>grep -q "type:" .planning/phases/01-*/01-01-PLAN.md 2>/dev/null</cmd>
+      <cmd>grep -q "verify:" .planning/phases/01-*/01-01-PLAN.md 2>/dev/null</cmd>
+    </verify>
+    <notes></notes>
+  </goal>
+
+  <goal id="G3" status="todo">
+    <title>Execute Phase 01 plan</title>
+    <description>Run the setup plan and verify all tasks complete successfully.</description>
+    <acceptance>
+      <item>Matching 01-01-SUMMARY.md exists</item>
+      <item>All verification commands passed</item>
+      <item>Project is set up and ready for development</item>
+    </acceptance>
+    <verify>
+      <cmd>ls .planning/phases/*/01-01-SUMMARY.md 2>/dev/null</cmd>
+      <cmd>./scripts/run-verifiers.sh</cmd>
+    </verify>
+    <notes></notes>
+  </goal>
+</goals>

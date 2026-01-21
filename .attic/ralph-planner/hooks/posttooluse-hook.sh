@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PostToolUse Hook - Update Ralph State and Context
+# Runs after Write/Edit operations to update iteration and goals tracking
+# SECURITY: All inputs validated, variables quoted, timeouts enforced
+
+# Exit codes:
+# 0 - Success
+# 2 - Blocking error (shown to user)
+
+# Validate required environment
+if [[ -z "${CLAUDEPROJECTDIR:-}" ]]; then
+  echo "Error: CLAUDEPROJECTDIR not set" >&2
+  exit 2
+fi
+
+# Set strict timeout for this script
+readonly SCRIPT_TIMEOUT=60
+
+# Read and validate hook input JSON from stdin
+HOOK_INPUT="$(cat || true)"
+if [[ -z "$HOOK_INPUT" ]]; then
+  exit 0
+fi
+
+# Sanitize and validate JSON input
+TOOL_NAME="$(echo "$HOOK_INPUT" | jq -er '.tool_name // empty' 2>/dev/null || echo "")"
+if [[ $? -ne 0 ]]; then
+  exit 0
+fi
+
+# Only proceed on Write or Edit operations
+if [[ "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Edit" ]]; then
+  exit 0
+fi
+
+# Build safe state file paths (validate no path traversal)
+HYBRID_STATE="${CLAUDEPROJECTDIR}/.claude.ralph-planner-hybrid.local.md"
+ORCHESTRATOR_STATE="${CLAUDEPROJECTDIR}/.claude.ralph-orchestrator.local.md"
+PLANNING_STATE="${CLAUDEPROJECTDIR}/.claude.ralph-planner-loop.local.md"
+GOALS_XML="${CLAUDEPROJECTDIR}/.ralph/goals.xml"
+
+# Validate paths don't contain traversal
+for path in "$HYBRID_STATE" "$ORCHESTRATOR_STATE" "$PLANNING_STATE" "$GOALS_XML"; do
+  if [[ "$path" == *".."* ]]; then
+    echo "Error: Path traversal detected" >&2
+    exit 2
+  fi
+done
+
+# Determine which state file is active (priority: Hybrid → Orchestrator → Planning)
+STATE_FILE=""
+if [[ -f "$HYBRID_STATE" ]]; then
+  STATE_FILE="$HYBRID_STATE"
+elif [[ -f "$ORCHESTRATOR_STATE" ]]; then
+  STATE_FILE="$ORCHESTRATOR_STATE"
+elif [[ -f "$PLANNING_STATE" ]]; then
+  STATE_FILE="$PLANNING_STATE"
+else
+  # No active Ralph loop
+  exit 0
+fi
+
+# Validate state file exists and is readable
+if [[ ! -r "$STATE_FILE" ]]; then
+  echo "Error: Cannot read state file: $STATE_FILE" >&2
+  exit 2
+fi
+
+# Extract YAML frontmatter from state file safely
+FRONTMATTER="$(sed -n '1,/^---$/p' "$STATE_FILE" 2>/dev/null | sed '1d;$d' || true)"
+if [[ -z "$FRONTMATTER" ]]; then
+  echo "Error: Invalid state file format" >&2
+  exit 2
+fi
+
+get_field() {
+  local key="$1"
+  echo "$FRONTMATTER" | awk -F': ' -v k="$key" '$1==k {print substr($0, length(k)+3)}' | head -n1
+}
+
+# Extract and validate iteration
+ITERATION="$(get_field iteration)"
+if [[ -z "$ITERATION" || ! "$ITERATION" =~ ^[0-9]+$ ]]; then
+  echo "Error: Invalid iteration value" >&2
+  exit 2
+fi
+
+MAX_ITERATIONS="$(get_field max_iterations)"
+
+# Increment iteration count safely
+NEW_ITERATION=$((ITERATION + 1))
+if [[ $NEW_ITERATION -gt 999999 ]]; then
+  echo "Error: Iteration overflow" >&2
+  exit 2
+fi
+
+# Update state file safely
+sed -i '' "s/^iteration: .*/iteration: ${NEW_ITERATION}/" "$STATE_FILE" 2>/dev/null || {
+  echo "Error: Cannot update state file" >&2
+  exit 2
+}
+
+# Update goals tracking for unified and orchestrator modes
+if [[ "$STATE_FILE" == "$HYBRID_STATE" || "$STATE_FILE" == "$ORCHESTRATOR_STATE" ]]; then
+  if [[ -f "$GOALS_XML" && -r "$GOALS_XML" ]]; then
+    TOTAL_GOALS=$(grep -c '<goal id=' "$GOALS_XML" 2>/dev/null || echo "0")
+    DONE_GOALS=$(grep -c 'status="done"' "$GOALS_XML" 2>/dev/null || echo "0")
+
+    # Validate numeric values
+    if [[ ! "$TOTAL_GOALS" =~ ^[0-9]+$ ]] || [[ ! "$DONE_GOALS" =~ ^[0-9]+$ ]]; then
+      echo "Error: Invalid goals count" >&2
+      exit 2
+    fi
+
+    # Update state file with validated values
+    sed -i '' "s/goals_completed: .*/goals_completed: ${DONE_GOALS}/" "$STATE_FILE" 2>/dev/null || true
+    sed -i '' "s/total_goals: .*/total_goals: ${TOTAL_GOALS}/" "$STATE_FILE" 2>/dev/null || true
+  fi
+
+  # Find current active goal with timeout
+  CURRENT_GOAL_ID=""
+  if [[ -f "$GOALS_XML" && -r "$GOALS_XML" ]]; then
+    CURRENT_GOAL_ID="$(timeout 30 python3 - <<'PYTHON_SCRIPT'
+import sys
+import xml.etree.ElementTree as ET
+
+try:
+    tree = ET.parse(sys.argv[1])
+    root = tree.getroot()
+
+    for goal in root.findall('goal'):
+        if goal.get('status') != 'done':
+            print(goal.get('id', 'unknown'))
+            sys.exit(0)
+
+    print("NONE")
+    sys.exit(0)
+except Exception as e:
+    print("ERROR")
+    sys.exit(1)
+PYTHON_SCRIPT
+"$GOALS_XML" 2>/dev/null || echo "ERROR")"
+  fi
+
+  # Validate current goal ID
+  if [[ -n "$CURRENT_GOAL_ID" && "$CURRENT_GOAL_ID" != "NONE" && "$CURRENT_GOAL_ID" != "ERROR" ]]; then
+    # Sanitize goal ID ( alphanumeric, underscore, hyphen only )
+    if [[ ! "$CURRENT_GOAL_ID" =~ ^[A-Za-z0-9_-]+$ ]]; then
+      echo "Error: Invalid goal ID format" >&2
+      exit 2
+    fi
+  fi
+
+  # Update context anchor safely
+  CONTEXT_FILE="${CLAUDEPROJECTDIR}/.ralph/context.md"
+  cat > "$CONTEXT_FILE" <<EOF
+# Ralph Context (Auto-Compact Anchor)
+
+## Loop State
+- Active: true
+- Iteration: ${NEW_ITERATION}
+- Max Iterations: ${MAX_ITERATIONS:-0}
+
+## Files
+- State File: ${STATE_FILE}
+- Goals XML: ${GOALS_XML}
+
+## Current Goal
+- ID: ${CURRENT_GOAL_ID:-NONE}
+
+---
+Auto-generated by PostToolUse hook. Updated after Write/Edit operations.
+EOF
+fi
+
+# Success - no output to keep PostToolUse silent
+exit 0

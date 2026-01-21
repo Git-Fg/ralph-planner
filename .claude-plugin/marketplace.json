@@ -1,0 +1,34 @@
+{
+  "name": "ralph-planner-marketplace",
+  "owner": {
+    "name": "Ralph Planner Team"
+  },
+  "metadata": {
+    "description": "Ralph Wiggum iterative development loops with persistent planning and validation",
+    "version": "2.0.0",
+    "pluginRoot": "ralph-planner"
+  },
+  "plugins": [
+    {
+      "name": "ralph-planner-v2",
+      "source": "./ralph-planner",
+      "description": "Ralph Planner v2 - Unified loop with persistent planning and validation based on Ralph Wiggum philosophy",
+      "version": "2.0.0",
+      "author": {
+        "name": "Ralph Planner Team"
+      },
+      "category": "productivity",
+      "keywords": [
+        "planning",
+        "automation",
+        "iteration",
+        "workflow",
+        "development",
+        "ralph-wiggum"
+      ],
+      "homepage": "https://github.com/ralphplanner/ralph-planner-v2",
+      "license": "MIT",
+      "strict": true
+    }
+  ]
+}
